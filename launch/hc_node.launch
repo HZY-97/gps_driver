@@ -1,0 +1,5 @@
+<launch>
+  <node name="hc_driver_node" pkg="hc_driver" type="hc_driver_node" output="screen">
+    <!-- Add any necessary arguments here -->
+  </node>
+</launch>
