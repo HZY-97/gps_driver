@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fstream>
 
 using namespace std;
 
@@ -12,6 +13,7 @@ using namespace std;
 #include "GNSS_NovatelMessage.hpp"
 #include "Uart.hpp"
 #include "siasunLog.h"
+
 
 // void CopyGpsMsg(sensor_msgs::NavSatFix &gps_msg, HuaCeGps &hcGps);
 
@@ -199,6 +201,9 @@ int main(int argc, char **argv)
 
     ros::Publisher gps_pub = nh.advertise<sensor_msgs::NavSatFix>("/hc_driver/gps_data", 10);
 
+    std::ofstream outputFile;
+    outputFile.open("data.txt");  // 默认模式，不指定追加模式
+
     while (ros::ok())
     {
         memset(buffer, 0, sizeof(buffer));
@@ -210,6 +215,8 @@ int main(int argc, char **argv)
 
         std::string receiveBuffer = buffer;
 
+        outputFile << receiveBuffer << std::endl;
+
         Decode(receiveBuffer);
 
         gps_pub.publish(rtk_data);
@@ -217,4 +224,7 @@ int main(int argc, char **argv)
         // std::cout << "Received data: " << hcGps.GetBuffer() << std::endl;
     }
     close(sockfd);
+    outputFile.close();
+
+    return 0;
 }
