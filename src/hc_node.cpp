@@ -205,6 +205,8 @@ int main(int argc, char **argv)
 
     std::cout << "服务器已启动，监听端口 9902" << std::endl;
 
+    char buffer[1024];
+
     ros::Publisher gps_pub = nh.advertise<sensor_msgs::NavSatFix>("/hc_driver/gps_data", 10);
 
     std::ofstream outputFile;
@@ -233,10 +235,12 @@ int main(int argc, char **argv)
         Decode(receiveBuffer);
 
         gps_pub.publish(rtk_data);
+
+        close(clientSocket);
         ros::spinOnce();
         // std::cout << "Received data: " << hcGps.GetBuffer() << std::endl;
     }
-    close(sockfd);
+    close(serverSocket);
     outputFile.close();
 
     return 0;
