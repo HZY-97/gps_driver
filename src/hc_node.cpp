@@ -175,29 +175,35 @@ int main(int argc, char **argv)
 
     static const int PORT = 9902;
 
-    int sockfd;
-    char buffer[1024];
+    int serverSocket, clientSocket;
     struct sockaddr_in serverAddr, clientAddr;
-    socklen_t addrLen = sizeof(clientAddr);
+    socklen_t clientAddrLen;
 
-    // 创建UDP套接字
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        ROS_ERROR("Failed to create socket");
-        return -1;
+    // 创建服务器套接字
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket < 0) {
+        std::cerr << "无法创建套接字" << std::endl;
+        return 1;
     }
 
-    memset(&serverAddr, 0, sizeof(serverAddr));
+    // 配置服务器地址和端口
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serverAddr.sin_port = htons(PORT);
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(9902);
 
-    // 绑定套接字到指定的IP地址和端口
-    if (bind(sockfd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
-        ROS_ERROR("Failed to bind socket");
-        return -1;
+    // 绑定套接字到服务器地址和端口
+    if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+        std::cerr << "绑定套接字失败" << std::endl;
+        return 1;
     }
 
-    ROS_INFO("UDP listener node is running...");
+    // 监听连接请求
+    if (listen(serverSocket, 1) < 0) {
+        std::cerr << "监听失败" << std::endl;
+        return 1;
+    }
+
+    std::cout << "服务器已启动，监听端口 9902" << std::endl;
 
     ros::Publisher gps_pub = nh.advertise<sensor_msgs::NavSatFix>("/hc_driver/gps_data", 10);
 
@@ -206,11 +212,18 @@ int main(int argc, char **argv)
 
     while (ros::ok())
     {
+        clientAddrLen = sizeof(clientAddr);
+        clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
+        if (clientSocket < 0) {
+            std::cerr << "无法接受连接" << std::endl;
+            return 1;
+        }
+
         memset(buffer, 0, sizeof(buffer));
-        int dataSize = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&clientAddr, &addrLen);
-        if (dataSize < 0) {
-            ROS_ERROR("Failed to receive data");
-            continue;
+        int bytesRead = read(clientSocket, buffer, sizeof(buffer));
+        if (bytesRead < 0) {
+            std::cerr << "读取数据失败" << std::endl;
+            return 1;
         }
 
         std::string receiveBuffer = buffer;
