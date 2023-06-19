@@ -176,35 +176,35 @@ int main(int argc, char **argv)
     static const int PORT = 9902;
 
     int serverSocket, clientSocket;
-    struct sockaddr_in serverAddr, clientAddr;
-    socklen_t clientAddrLen;
+    struct sockaddr_in serverAddress, clientAddress;
+    socklen_t clientLength;
 
-    // 创建服务器套接字
+    // 创建socket
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
-        std::cerr << "无法创建套接字" << std::endl;
+        std::cerr << "Failed to create socket." << std::endl;
         return 1;
     }
 
-    // 配置服务器地址和端口
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
-    serverAddr.sin_port = htons(9902);
+    // 设置服务器地址
+    memset(&serverAddress, 0, sizeof(serverAddress));
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_port = htons(PORT);
 
-    // 绑定套接字到服务器地址和端口
-    if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
-        std::cerr << "绑定套接字失败" << std::endl;
+    // 绑定socket到指定地址和端口
+    if (bind(serverSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) {
+        std::cerr << "Failed to bind socket." << std::endl;
         return 1;
     }
 
-    // 监听连接请求
-    if (listen(serverSocket, 1) < 0) {
-        std::cerr << "监听失败" << std::endl;
+    // 监听连接
+    if (listen(serverSocket, 5) < 0) {
+        std::cerr << "Failed to listen." << std::endl;
         return 1;
     }
 
-    std::cout << "服务器已启动，监听端口 9902" << std::endl;
-
+    std::cout << "Server listening on port 1234..." << std::endl;
     char buffer[1024];
 
     ros::Publisher gps_pub = nh.advertise<sensor_msgs::NavSatFix>("/hc_driver/gps_data", 10);
@@ -214,30 +214,40 @@ int main(int argc, char **argv)
 
     while (ros::ok())
     {
-        clientAddrLen = sizeof(clientAddr);
-        clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
+        clientLength = sizeof(clientAddress);
+        clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddress, &clientLength);
         if (clientSocket < 0) {
-            std::cerr << "无法接受连接" << std::endl;
-            return 1;
+            std::cerr << "Failed to accept connection." << std::endl;
+            continue;
         }
 
-        memset(buffer, 0, sizeof(buffer));
-        int bytesRead = read(clientSocket, buffer, sizeof(buffer));
-        if (bytesRead < 0) {
-            std::cerr << "读取数据失败" << std::endl;
-            return 1;
+        // 从客户端接收数据
+        ssize_t bytesRead;
+        while ((bytesRead = read(clientSocket, buffer, sizeof(buffer))) > 0 && ros::ok()) {
+            std::cout << "Received data: " << std::string(buffer, bytesRead) << std::endl;
+            // 在这里可以对接收到的数据进行处理
+
+            std::string receiveBuffer = buffer;
+
+            outputFile << receiveBuffer << std::endl;
+
+            Decode(receiveBuffer);
+
+            gps_pub.publish(rtk_data);
+            // 清空缓冲区
+            memset(buffer, 0, sizeof(buffer));
+            ros::spinOnce();
         }
 
-        std::string receiveBuffer = buffer;
-
-        outputFile << receiveBuffer << std::endl;
-
-        Decode(receiveBuffer);
-
-        gps_pub.publish(rtk_data);
+        if (bytesRead == 0) {
+        // 连接关闭
+        std::cout << "Client disconnected." << std::endl;
+        } else {
+        // 读取数据时发生错误
+        std::cerr << "Failed to receive data." << std::endl;
+        }
 
         close(clientSocket);
-        ros::spinOnce();
         // std::cout << "Received data: " << hcGps.GetBuffer() << std::endl;
     }
     close(serverSocket);
