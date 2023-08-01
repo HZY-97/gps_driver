@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(hc_driver)
+project(gps_driver)
 
 # set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_BUILD_TYPE "Debug")
@@ -22,10 +22,10 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/hc_driver
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gps_driver
 )
 
 
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src HC_DRIVER_SRC)
-add_executable(${PROJECT_NAME}_node ${HC_DRIVER_SRC})
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src GPS_DRIVER_SRC)
+add_executable(${PROJECT_NAME}_node ${GPS_DRIVER_SRC})
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})

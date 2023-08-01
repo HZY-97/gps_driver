@@ -1,0 +1,5 @@
+<launch>
+  <node name="gps_driver_node" pkg="gps_driver" type="gps_driver_node" output="screen">
+    <!-- Add any necessary arguments here -->
+  </node>
+</launch>
