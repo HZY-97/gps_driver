@@ -89,45 +89,14 @@ int main(int argc, char **argv)
         std::cout << "Received data from GPS sensor: " << std::endl
                   << receiveStr << std::endl;
 
+        // outputFile << receiveStr << std::endl;
+
         Decode(receiveStr);
 
         gps_pub.publish(rtk_data);
         // 清空缓冲区
         memset(buffer, 0, sizeof(buffer));
         ros::spinOnce();
-
-        //     // 从客户端接收数据
-        //     ssize_t bytesRead;
-        //     while ((bytesRead = read(clientSocket, buffer, sizeof(buffer))) > 0 && ros::ok())
-        //     {
-        //         std::cout << "Received data: " << std::string(buffer, bytesRead) << std::endl;
-        //         // 在这里可以对接收到的数据进行处理
-
-        //         std::string receiveBuffer = buffer;
-
-        //         outputFile << receiveBuffer << std::endl;
-
-        //         Decode(receiveBuffer);
-
-        //         gps_pub.publish(rtk_data);
-        //         // 清空缓冲区
-        //         memset(buffer, 0, sizeof(buffer));
-        //         ros::spinOnce();
-        //     }
-
-        //     if (bytesRead == 0)
-        //     {
-        //         // 连接关闭
-        //         std::cout << "Client disconnected." << std::endl;
-        //     }
-        //     else
-        //     {
-        //         // 读取数据时发生错误
-        //         std::cerr << "Failed to receive data." << std::endl;
-        //     }
-
-        //     close(clientSocket);
-        //     // std::cout << "Received data: " << hcGps.GetBuffer() << std::endl;
     }
     close(clientSocket); // 关闭GPS传感器套接字，结束与GPS传感器的连接
     close(serverSocket); // 关闭服务器套接字
