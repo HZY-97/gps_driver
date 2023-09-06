@@ -25,8 +25,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "gps_driver_node");
     ros::NodeHandle nh;
     ros::Publisher gps_pub = nh.advertise<sensor_msgs::NavSatFix>("/gps_driver/gps_data", 10);
-    std::ofstream outputFile;
-    outputFile.open("data.txt"); // 默认模式，不指定追加模式
+    // std::ofstream outputFile;
+    // outputFile.open("data.txt"); // 默认模式，不指定追加模式
 
     static const int PORT = 9902;
 
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
     }
     close(clientSocket); // 关闭GPS传感器套接字，结束与GPS传感器的连接
     close(serverSocket); // 关闭服务器套接字
-    outputFile.close();
+    // outputFile.close();
 
     return 0;
 }
