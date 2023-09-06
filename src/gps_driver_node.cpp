@@ -13,7 +13,10 @@ using namespace std;
 #include "GNSS_NMEAMessage.hpp"
 #include "GNSS_NovatelMessage.hpp"
 #include "Uart.hpp"
-#include "siasunLog.h"
+#include <logTool.h>
+#include <ros/package.h>
+
+INITIALIZE_EASYLOGGINGPP
 
 // void CopyGpsMsg(sensor_msgs::NavSatFix &gps_msg, HuaCeGps &hcGps);
 
@@ -24,6 +27,20 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "gps_driver_node");
     ros::NodeHandle nh;
+
+    std::string package_path = ros::package::getPath("gps_driver");
+    if (package_path.empty())
+    {
+        ROS_ASSERT(false);
+        ros::shutdown();
+    }
+
+    // init log
+    std::string logConfigPath = package_path + "/config/Log.conf";
+    std::string logSavePath = package_path + "/../../Log";
+    Log::InitLog(logConfigPath, logSavePath, "gpsDriver.log");
+    el::Loggers::getLogger("socket");
+
     ros::Publisher gps_pub = nh.advertise<sensor_msgs::NavSatFix>("/gps_driver/gps_data", 10);
     // std::ofstream outputFile;
     // outputFile.open("data.txt"); // 默认模式，不指定追加模式
@@ -33,7 +50,7 @@ int main(int argc, char **argv)
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0); // 创建套接字，返回套接字描述符
     if (serverSocket == -1)
     {
-        std::cerr << "Error creating socket." << std::endl;
+        CLOG(ERROR, "socket") << "Error creating socket.";
         return 1;
     }
 
@@ -44,34 +61,35 @@ int main(int argc, char **argv)
 
     if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1)
     {
-        std::cerr << "Error binding socket." << std::endl;
+        CLOG(ERROR, "socket") << "Error binding socket.";
         close(serverSocket);
         return 1;
     }
 
     if (listen(serverSocket, 1) == -1)
     { // 只允许同时连接一个GPS传感器
-        std::cerr << "Error listening on socket." << std::endl;
+        CLOG(ERROR, "socket") << "Error listening on socket.";
         close(serverSocket);
         return 1;
     }
 
-    std::cout << "GPS server started. Listening on port : " << PORT << " ... " << std::endl;
+    CLOG(DEBUG, "socket") << "GPS server started. Listening on port : " << PORT << " ... ";
 
     sockaddr_in clientAddr{};
     socklen_t clientAddrLen = sizeof(clientAddr);
     int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLen); // 等待并接受GPS传感器连接
+    CLOG(DEBUG, "socket") << "clientSocket = " << clientSocket;
 
     if (clientSocket == -1)
     {
-        std::cerr << "Error accepting connection." << std::endl;
+        CLOG(ERROR, "socket") << "Error accepting connection.";
         close(serverSocket);
         return 1;
     }
 
     char clientIP[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(clientAddr.sin_addr), clientIP, INET_ADDRSTRLEN); // 将GPS传感器IP地址转换为字符串形式
-    std::cout << "GPS sensor connected from " << clientIP << std::endl;
+    CLOG(DEBUG, "socket") << "GPS sensor connected from " << clientIP;
 
     char buffer[1024] = {0};
 
@@ -80,14 +98,15 @@ int main(int argc, char **argv)
         ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0); // 接收GPS传感器发送的数据
         if (bytesRead <= 0)
         {
-            std::cerr << "Error receiving data or connection closed by the GPS sensor." << std::endl;
+            CLOG(ERROR, "socket") << "Error receiving data or connection closed by the GPS sensor.";
+            sleep(1);
             continue;
             // break;
         }
 
         std::string receiveStr(buffer);
-        std::cout << "Received data from GPS sensor: " << std::endl
-                  << receiveStr << std::endl;
+        CLOG(DEBUG, "socket") << "Received data from GPS sensor: \n"
+                              << receiveStr;
 
         // outputFile << receiveStr << std::endl;
 
