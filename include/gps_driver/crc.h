@@ -2,8 +2,7 @@
 #define __CRC_H
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 extern const unsigned long ulCrcTable[256];
@@ -17,4 +16,3 @@ unsigned short sensor_msg_crc16(const unsigned char *buf, unsigned int len);
 #endif
 
 #endif
-
