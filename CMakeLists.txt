@@ -97,6 +97,20 @@ if(USE_TEST)
   add_subdirectory(test)
 endif()
 
+execute_process(
+    COMMAND tar --exclude=build 
+                --exclude=.gitignore 
+                --exclude=.cache
+                --exclude=.git
+                --exclude=.tag*
+                --exclude=install
+                --exclude=.vscode 
+                --exclude=3dNavBlackBox*
+                -czf ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_SourceCode_v${${PROJECT_NAME}_MAJOR_VERSION}.${${PROJECT_NAME}_MINOR_VERSION}.${${PROJECT_NAME}_PATCH_VERSION}.tar.gz 
+                gps_driver/
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../
+)
+
 install(
   FILES
       ${PROJECT_SOURCE_DIR}/shell/setenv.bash
@@ -107,3 +121,16 @@ install(
               WORLD_EXECUTE WORLD_READ
 )
 
+# CPack
+set(CPACK_GENERATOR "ZIP")  # ZIP TGZ DEB RPM
+set(CPACK_PACKAGE_NAME "gps_driver")
+set(CPACK_PACKAGE_VERSION_MAJOR ${${PROJECT_NAME}_MAJOR_VERSION})
+set(CPACK_PACKAGE_VERSION_MINOR ${${PROJECT_NAME}_MINOR_VERSION})
+set(CPACK_PACKAGE_VERSION_PATCH ${${PROJECT_NAME}_PATCH_VERSION})
+set(CPACK_PACKAGE_DESCRIPTION "SIASUN")
+
+# How to install all dependencies libraries to pack
+# set(CPACK_DEB_COMPONENT_INSTALL ON)
+# set(CPACK_DEBIAN_PACKAGE_DEPENDS "libglog.so.0")
+
+include(CPack)

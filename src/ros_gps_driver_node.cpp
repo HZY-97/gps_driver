@@ -16,6 +16,9 @@
 #include "GNSS_NovatelMessage.hpp"
 #include "Uart.hpp"
 
+const int PORT = 9996;
+const int BUFFER_SIZE = 1024;
+
 using namespace std;
 // void CopyGpsMsg(sensor_msgs::NavSatFix &gps_msg, HuaCeGps &hcGps);
 
@@ -67,16 +70,16 @@ int main(int argc, char **argv) {
   /** @brief ros初始化*/
 
   /** @brief 获取环境变量 初始化日志*/
-  std::string path;
-  char *gps_driver_path = std::getenv("GPS_DRIVER_PATH");
-  if (nullptr == gps_driver_path) {
-    std::cerr << "\033[31m"
-              << "[ENV]:No env 'GPS_DRIVER_PATH'"
-              << "\033[0m" << std::endl;
-    return -1;
-  } else {
-    path = std::string(gps_driver_path);
-  }
+  // std::string path;
+  // char *gps_driver_path = std::getenv("GPS_DRIVER_PATH");
+  // if (nullptr == gps_driver_path) {
+  //   std::cerr << "\033[31m"
+  //             << "[ENV]:No env 'GPS_DRIVER_PATH'"
+  //             << "\033[0m" << std::endl;
+  //   return -1;
+  // } else {
+  //   path = std::string(gps_driver_path);
+  // }
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
   FLAGS_logbufsecs = 0;
@@ -85,66 +88,40 @@ int main(int argc, char **argv) {
   LOG(INFO) << "Log init.";
   /** @brief 获取环境变量 初始化日志*/
 
-  /** @brief 将报文写入文件 */
-  // std::ofstream outputFile;
-  // outputFile.open("data.txt"); // 默认模式，不指定追加模式
-  /** @brief 将报文写入文件 */
-
-  static const int PORT = 9902;
-
-  int serverSocket =
-      socket(AF_INET, SOCK_STREAM, 0);  // 创建套接字，返回套接字描述符
-  if (serverSocket == -1) {
-    LOG(ERROR) << "Error creating socket.";
-    return 1;
-  }
-  sockaddr_in serverAddr{};
-  serverAddr.sin_family = AF_INET;  // 使用IPv4地址族
-  serverAddr.sin_port = htons(PORT);  // 设置端口号，使用网络字节序（大端序）
-  serverAddr.sin_addr.s_addr = INADDR_ANY;  // 监听任意可用的网络接口
-
-  if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) ==
-      -1) {
-    LOG(ERROR) << "Error binding socket.";
-    close(serverSocket);
-    return 1;
+  // 创建 UDP 套接字
+  int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sockfd < 0) {
+    LOG(ERROR) << "无法创建套接字";
+    return -1;
   }
 
-  if (listen(serverSocket, 1) == -1) {  // 只允许同时连接一个GPS传感器
-    LOG(ERROR) << "Error listening on socket.";
-    close(serverSocket);
-    return 1;
+  // 设置服务器地址结构
+  struct sockaddr_in server_addr;
+  memset(&server_addr, 0, sizeof(server_addr));
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_addr.s_addr = INADDR_ANY;  // 监听本机的所有 IP 地址
+  server_addr.sin_port = htons(PORT);        // 设置监听端口
+
+  // 绑定套接字到指定端口
+  if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+    LOG(ERROR) << "绑定失败";
+    close(sockfd);
+    return -1;
   }
 
-  LOG(INFO) << "GPS server started. Listening on port:" << PORT << " ...";
+  LOG(INFO) << "服务器启动，监听端口 " << PORT << "...";
 
-  sockaddr_in clientAddr{};
-  socklen_t clientAddrLen = sizeof(clientAddr);
-  int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr,
-                            &clientAddrLen);  // 等待并接受GPS传感器连接
-  LOG(INFO) << "clientSocket:" << clientSocket;
-
-  if (clientSocket == -1) {
-    LOG(ERROR) << "Error accepting connection.";
-    close(serverSocket);
-    return 1;
-  }
-
-  char clientIP[INET_ADDRSTRLEN];
-  inet_ntop(AF_INET, &(clientAddr.sin_addr), clientIP,
-            INET_ADDRSTRLEN);  // 将GPS传感器IP地址转换为字符串形式
-  LOG(INFO) << "GPS sensor connected from:" << clientIP;
-
-  char buffer[1024] = {0};
+  char buffer[BUFFER_SIZE];
+  struct sockaddr_in client_addr;
+  socklen_t addr_len = sizeof(client_addr);
 
   std::thread t([&]() {
     while (running.load()) {
-      ssize_t bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1,
-                               0);  // 接收GPS传感器发送的数据
+      ssize_t bytesRead = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0,
+                                   (struct sockaddr *)&client_addr, &addr_len);
       if (bytesRead <= 0) {
         LOG(ERROR) << "Error receiving data or connection closed by the "
                       "GPS sensor.";
-        sleep(1);
         continue;
         // break;
       }
@@ -168,8 +145,8 @@ int main(int argc, char **argv) {
   });
   t.join();
 
-  close(clientSocket);  // 关闭GPS传感器套接字，结束与GPS传感器的连接
-  close(serverSocket);  // 关闭服务器套接字
+  // close(clientSocket);  // 关闭GPS传感器套接字，结束与GPS传感器的连接
+  close(sockfd);  // 关闭服务器套接字
   // outputFile.close();
   rclcpp::shutdown();
   return 0;
